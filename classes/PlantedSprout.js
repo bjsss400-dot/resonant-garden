@@ -7,6 +7,10 @@ class PlantedSprout {
     this.baseY = y;
     this.createdAt = createdAt;
     this.growth = 0;
+    this.clickCount = 1;
+    this.currentHeight = 0;
+    this.heightVelocity = 0;
+    this.growthPulse = 1;
     this.targetHeight = constrain(
       82 + abs(sin(x * 0.017 + y * 0.009)) * 72,
       82,
@@ -20,6 +24,16 @@ class PlantedSprout {
   update(windAmount) {
     this.growth = min(1, this.growth + 0.022);
 
+    const easedGrowth = 1 - pow(1 - this.growth, 3);
+    const desiredHeight = this.targetHeight * easedGrowth;
+
+    // The same damped-spring idea used for bending also makes repeated
+    // clicks extend the stem smoothly instead of jumping to a new height.
+    this.heightVelocity += (desiredHeight - this.currentHeight) * 0.035;
+    this.heightVelocity *= 0.82;
+    this.currentHeight += this.heightVelocity;
+    this.growthPulse *= 0.9;
+
     const visibleHeight = this.getVisibleHeight();
     const idleSway = sin(frameCount * 0.018 + this.phase) * visibleHeight * 0.015;
     const targetBend = idleSway + windAmount * visibleHeight * 0.27;
@@ -30,8 +44,42 @@ class PlantedSprout {
   }
 
   getVisibleHeight() {
-    const easedGrowth = 1 - pow(1 - this.growth, 3);
-    return this.targetHeight * easedGrowth;
+    return max(0, this.currentHeight);
+  }
+
+  growFromClick() {
+    const maximumHeight = max(
+      150,
+      min(height * 0.66, this.baseY - 35)
+    );
+    const heightIncrease = max(20, 34 - this.clickCount * 1.5);
+
+    this.clickCount += 1;
+    this.targetHeight = min(
+      maximumHeight,
+      this.targetHeight + heightIncrease
+    );
+    this.growthPulse = 1;
+  }
+
+  containsPoint(x, y) {
+    const visibleHeight = max(30, this.getVisibleHeight());
+    const topX = this.baseX + this.bend;
+    const topY = this.baseY - visibleHeight;
+    const insideVerticalRange = y >= topY - 42 && y <= this.baseY + 42;
+    const progressDownStem = constrain(
+      (y - topY) / visibleHeight,
+      0,
+      1
+    );
+    const estimatedStemX = lerp(topX, this.baseX, progressDownStem);
+    const hitsStemOrLeaves = (
+      insideVerticalRange &&
+      abs(x - estimatedStemX) <= 52
+    );
+    const hitsRootGlow = dist(x, y, this.baseX, this.baseY) <= 76;
+
+    return hitsStemOrLeaves || hitsRootGlow;
   }
 
   display() {
@@ -45,16 +93,22 @@ class PlantedSprout {
     const x3 = x0 + this.bend;
     const y3 = y0 - visibleHeight;
     const pulse = 0.72 + 0.28 * sin(frameCount * 0.075 + this.phase);
+    const clickFlash = this.growthPulse;
 
     push();
     blendMode(ADD);
 
     // Light held in the soil makes the click location remain visible.
     noStroke();
-    fill(255, 185, 67, 18 * pulse);
-    ellipse(x0, y0 + 2, 82, 25);
-    fill(255, 212, 119, 38 * pulse);
-    circle(x0, y0, 24);
+    fill(255, 185, 67, 18 * pulse + clickFlash * 24);
+    ellipse(
+      x0,
+      y0 + 2,
+      82 + clickFlash * 62,
+      25 + clickFlash * 15
+    );
+    fill(255, 212, 119, 38 * pulse + clickFlash * 32);
+    circle(x0, y0, 24 + clickFlash * 12);
     fill(255, 232, 169, 210);
     circle(x0, y0, 5.5);
 
@@ -67,35 +121,50 @@ class PlantedSprout {
     strokeWeight(1.7);
     bezier(x0, y0, x1, y1, x2, y2, x3, y3);
 
-    if (this.growth > 0.28) {
-      const firstLeafProgress = 0.53;
-      this.drawGoldenLeaf(
-        bezierPoint(x0, x1, x2, x3, firstLeafProgress),
-        bezierPoint(y0, y1, y2, y3, firstLeafProgress),
-        -0.72 + this.bend * 0.003,
-        visibleHeight * 0.28,
-        constrain((this.growth - 0.28) / 0.32, 0, 1)
-      );
-    }
+    if (this.growth > 0.24 && visibleHeight > 34) {
+      const leafCount = constrain(2 + this.clickCount, 2, 9);
 
-    if (this.growth > 0.48) {
-      const secondLeafProgress = 0.68;
-      this.drawGoldenLeaf(
-        bezierPoint(x0, x1, x2, x3, secondLeafProgress),
-        bezierPoint(y0, y1, y2, y3, secondLeafProgress),
-        PI + 0.72 + this.bend * 0.003,
-        visibleHeight * 0.31,
-        constrain((this.growth - 0.48) / 0.28, 0, 1)
-      );
+      for (let leafIndex = 0; leafIndex < leafCount; leafIndex += 1) {
+        const leafProgress = map(
+          leafIndex,
+          0,
+          max(1, leafCount - 1),
+          0.34,
+          0.82
+        );
+        const pointsRight = leafIndex % 2 === 0;
+        const leafAngle = pointsRight ? -0.68 : PI + 0.68;
+        const leafLength = constrain(
+          18 + visibleHeight * 0.055 + (leafIndex % 3) * 2,
+          20,
+          42
+        );
+
+        this.drawGoldenLeaf(
+          bezierPoint(x0, x1, x2, x3, leafProgress),
+          bezierPoint(y0, y1, y2, y3, leafProgress),
+          leafAngle + this.bend * 0.003,
+          leafLength,
+          constrain((this.growth - 0.24) / 0.34, 0, 1)
+        );
+      }
     }
 
     if (this.growth > 0.7) {
       const bloomScale = constrain((this.growth - 0.7) / 0.3, 0, 1);
       noStroke();
-      fill(255, 202, 99, 24 * bloomScale * pulse);
-      circle(x3, y3, 30 * bloomScale);
+      fill(255, 202, 99, 24 * bloomScale * pulse + clickFlash * 24);
+      circle(
+        x3,
+        y3,
+        (30 + min(this.clickCount, 8) * 4 + clickFlash * 20) * bloomScale
+      );
       fill(255, 237, 183, 235 * bloomScale);
-      circle(x3, y3, 5.5 * bloomScale);
+      circle(
+        x3,
+        y3,
+        (5.5 + min(this.clickCount, 8) * 0.65) * bloomScale
+      );
     }
 
     blendMode(BLEND);
