@@ -41,9 +41,15 @@ function receiveInputEvents() {
   const newPlantRequests = consumePlantRequests();
 
   for (const request of newPlantRequests) {
-    plantedSprouts.push(
-      new PlantedSprout(request.x, request.y, request.createdAt)
-    );
+    const existingSprout = findSproutAt(request.x, request.y);
+
+    if (existingSprout) {
+      existingSprout.growFromClick();
+    } else {
+      plantedSprouts.push(
+        new PlantedSprout(request.x, request.y, request.createdAt)
+      );
+    }
   }
 
   // Keep the artwork responsive during a long gallery session.
@@ -54,6 +60,21 @@ function receiveInputEvents() {
   if (consumeResetRequest()) {
     plantedSprouts.length = 0;
   }
+}
+
+function findSproutAt(x, y) {
+  // Search newest first when plants overlap visually.
+  for (
+    let sproutIndex = plantedSprouts.length - 1;
+    sproutIndex >= 0;
+    sproutIndex -= 1
+  ) {
+    if (plantedSprouts[sproutIndex].containsPoint(x, y)) {
+      return plantedSprouts[sproutIndex];
+    }
+  }
+
+  return null;
 }
 
 function buildDeterministicScene() {
