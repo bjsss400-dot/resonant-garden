@@ -294,12 +294,6 @@ function drawInterface() {
   push();
   noStroke();
 
-  // A soft lower veil keeps the instructions legible over foreground plants.
-  for (let veilIndex = 0; veilIndex < 28; veilIndex += 1) {
-    fill(2, 14, 25, veilIndex * 0.95);
-    rect(0, height - veilIndex * 3, width, 3.2);
-  }
-
   fill(225, 244, 241, 160);
   textAlign(LEFT, TOP);
   textSize(constrain(width * 0.0075, 9, 12));
@@ -309,15 +303,6 @@ function drawInterface() {
   fill(139, 199, 190, 105);
   textSize(constrain(width * 0.0064, 8, 10));
   text("USER INPUT / JINSA BAI", 24, 38);
-
-  fill(226, 241, 236, 175);
-  textAlign(CENTER, BOTTOM);
-  textSize(constrain(width * 0.0074, 10, 13));
-  text(
-    "CLICK TO PLANT  •  DRAG TO BEND THE GARDEN  •  R TO RESET",
-    width / 2,
-    height - 22
-  );
 
   pop();
 }
