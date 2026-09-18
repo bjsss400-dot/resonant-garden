@@ -10,7 +10,8 @@ The visual direction is inspired by bioluminescent gardens, moving contour lands
 
 This branch contains Jinsa Bai's User Input mechanic and a polished visual pilot:
 
-- Click the lower garden to plant a luminous sprout.
+- Click empty ground to plant a luminous sprout.
+- Click the same sprout repeatedly to make it grow taller and add leaves.
 - Each click creates six expanding resonance rings and travelling sparks.
 - Drag across the canvas to create a visible cyan wind current.
 - Nearby plants bend according to the drag direction and distance.
